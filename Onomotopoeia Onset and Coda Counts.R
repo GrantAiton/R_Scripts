@@ -1,0 +1,219 @@
+##generate a list of all onsets and codas, and all syllable types
+#install.packages(c("installr", "stringr", "audio", "rPraat", "seewave", "stringr", "tuneR", "devtools", "ggplot2", "ggpubr", "dplyr"))
+#library(installr)
+#updateR()
+library(devtools)
+library(dplyr)
+#install_github("dalejbarr/elan") #need to install Rtools on system
+library(elan)
+library(rPraat)
+library(audio)
+library(tuneR)
+library(stringr)
+library(seewave)
+library(ggplot2)
+library(ggpubr)
+
+####Getting a total onset and coda count for a directory of eaf files########################################
+onom_word_list <- c("gaːgaːwoː",  "haː",  "kiːkiː",  "gãː",  "hoːloː",  "gə̃ː",  "hoguː",  "mo",  "seːseː",  "βuːwoː",  "ɛː",  "iʒː",  "kɛkɛkɛ",  "uː",  "waː",  "wo",  "ɸoːloː",  "βː",  "suːwaːlaː",  "suː",  "ɸoːloː",  "βː",  "gõːgõː",  "siːgɛ̃ĩ",  "gaːdaː",  "boː",  "buː",  "guːloː",  "wijaː",  "ɸuːtukuː", "saː",  "sõːwɛ̃ː")
+
+
+#sets the name of the folder containing eaf files
+languageFolder <- './rawinput'
+languageFolder
+#creates list of eaf files
+fls <- list.files(languageFolder, full.names = T, pattern = 'eaf')
+#subset only free translation files
+fls <- fls[grep("-1", fls)]
+#remove songs
+fls <- fls[grep("ailot|ailra|ailoa", fls)]
+fls
+
+#Create vowel set variable
+vowelset <- c("a", "e", "i", "o", "u", "aː", "ɪː", "ɛ", "ɛː", "oː", "uː", "iː", "ɪ", "ɛːː", "aːː", "ɪːː", "ə", "iːː", "oːː", "eː", "ɔː", "ɔ", "e")
+consonantset <- c("s", "m", "l", "g", "j", "h", "d", "k", "n", "w", "b", "t", "ɸ", "v", "ɾ", "ʃ", "p", "ŋ", "ʃː", "mː", "mːː", "β", "ŋːː", "ŋː", "x", "c", "r", "ʒːː", "ʒ", "ʙ", "ɡ", "z", "f", "βːː", "βː")
+coda_consonantset <- c("n", "m", "ŋ", "l", "b", "ŋːː", "ŋː", "k", "s", "z")
+odd_onsets <- c("bs", "nd","ŋw", "kw", "mj", "sk", "dw", "st", "bd", "ks", "zd")
+#create master vector of all characters
+
+allphones <- NULL
+allonsets <-NULL
+allcodas <- NULL
+dict <- NULL
+
+#generate a list of all onsets and codas
+for(file in fls[1]) {
+  #load eaf file
+  eaf <- efileAnnotations(file)
+  #selects transcription tiers
+  eaf <- eaf[grep('Transcription', eaf$TIER_ID),]
+  
+  #subsets the dataframe to the annotations
+  eaf_ann <- eaf$VALUE
+  
+  ##data cleanup
+  data <- eaf_ann
+  data <- gsub("\\:|\\;", "ː", data)
+  
+  data <- sub("\\(.*\\)", "", data)
+  data <- gsub("<unintelligible>|<unclear>|<|>|-|--|->|\\?|\\.", "", data)
+  data <- gsub("\\(.*", "", data)
+  data <- data[!grepl('\\)|\n', data)]
+  data <- gsub(' ː| :', 'ː', data)
+  data <- gsub('ɪ ̆', 'ɪ̆', data)
+  data <- gsub('o ̆', 'ŏ', data)
+  data <- gsub('u ̆', 'ŭ', data)
+  data <- gsub('i ̆', 'ĭ', data)
+  data <- gsub('a ̆', 'ă', data)
+  data <- gsub('e ̆', 'ĕ', data)
+  data <- gsub('ə ̆', 'ə̆', data)
+  data <- gsub('ɔ ̆', 'ɔ̆', data)
+  data <- gsub('ɛ ̆', 'ɛ̆', data)
+  data <- gsub('ɛ ́', 'ɛ́', data)
+  data <- gsub('ɪ ́', 'ɪ́', data)
+  data <- gsub('o ́', 'ó', data)
+  data <- gsub('u ́', 'ú', data)
+  data <- gsub('i ́', 'í', data)
+  data <- gsub('a ́', 'á', data)
+  data <- gsub('e ́', 'é', data)
+  data <- gsub('ə ́', 'ə́', data)
+  data <- gsub('ɔ ́', 'ɔ́', data)
+  data <- gsub('ə ̃', 'ə̃', data)
+  data <- gsub('ɪ ̃', 'ɪ̃', data)
+  data <- gsub('o ̃', 'õ', data)
+  data <- gsub('u ̃', 'ũ', data)
+  data <- gsub('ɛ ̃', 'ɛ̃', data)
+  data <- gsub('a ̃', 'ã', data)
+  data <- gsub('e ̃', 'ẽ', data)
+  data <- gsub('ɔ ̃', 'ɔ̃', data)
+  data <- gsub('i ̃', 'ĩ', data)
+  data <- gsub('ə̃ ̆', 'ə̃̆', data)
+  data <- gsub('ɪ̃ ̆', 'ɪ̃̆', data)
+  data <- gsub('ã ̆', 'ã̆', data)
+  data <- gsub('õ ̆', 'õ̆', data)
+  data <- gsub('ũ ̆', 'ũ̆', data)
+  data <- gsub('ɛ̃ ̆', 'ɛ̃̆', data)
+  data <- gsub('ẽ ̆', 'ẽ̆', data)
+  data <- gsub('ɔ̃ ̆', 'ɔ̃̆', data)
+  data <- gsub('ĩ ̆', 'ĩ̆', data)
+
+  data <- gsub("ɾ", "l", data)
+  data <- gsub("ʃ", "s", data)
+  data <- gsub("f", "ɸ", data)
+  data <- gsub("r", "l", data)
+  
+  eaf_ann <- data
+  
+  #splits annotations into words
+  tempwords <- tolower(unlist(strsplit(paste(eaf_ann, collapse = ' '), split = " ")))
+  #remove blank annotations
+  tempwords <- tempwords[tempwords!=""]
+ 
+
+  #split each word into characters
+  for(w in tempwords) {
+    #testword
+    #w <- "tlaːtamvan"
+    #split word into characters
+    wphone <- unlist(strsplit(w, split = ""))
+    #recombine vowels with following length symbol
+    for(i in 1:length(wphone)) {
+      if (i>1&i<=length(wphone)){
+        if ((wphone[i] == "ː" & wphone[i-1] %in% vowelset)){
+          wphone[i-1] <- paste0(wphone[i-1], "ː")
+          ##remove any lone length symbols
+          wphone <- wphone[wphone!="ː"]
+        }
+      }
+    }
+    tempwcoda <- NULL
+    fullwcoda <- NULL
+    tempwonset <- NULL
+    fullwonset <- NULL
+    codalist <- NULL
+    onsetlist <- NULL
+    for(i in 1:length(wphone)) {
+      #test printing
+      #i<-6
+      #print("wphone")
+      #print(wphone[i])
+      #if it's the final phone and a consonant, add it as a coda, this will cause problems for complex final codas
+      if(wphone[i] %in% consonantset & i==length(wphone)) {
+        tempwcoda <- wphone[i]
+        codalist <- append(codalist, tempwcoda)
+        #test printing
+        #print("finalcoda")
+        #print(tempwcoda)
+        #if it's not the initial or final phone
+      } else if (i>1 & i < length(wphone)) {
+        #if it's after a vowel and before a consonant and is an eligible coda consonant, add as a coda
+        if(wphone[i-1] %in% vowelset & !(wphone[i+1] %in% vowelset) & wphone[i] %in% coda_consonantset) {
+          tempwcoda <- append(tempwcoda, wphone[i])
+          #test printing
+          #print("nonfinal coda")
+          #print(tempwcoda)
+          #if the phone is a non-final consonant that is not a valid coda consonant, add it to the tempwonset
+        } else if (wphone[i] %in% consonantset){
+          tempwonset <- append(tempwonset, wphone[i])
+          #test printing
+          #print("tempwonset")
+          #print(tempwonset)
+          #if it's a vowel and there is an onset before it, save the onset phones to onsetlist as a single string, and reset tempwonset to NULL
+        } else if (!(wphone[i] %in% consonantset | is.null(tempwonset))) {
+          #merge tempwonset vector to a single string 
+          fullwonset <- paste0(tempwonset, sep = "", collapse = "")
+          #TEST PRINTING
+          #print("fullwonset")
+          #print(fullwonset)
+          #print("vowel")
+          #print(wphone[i])
+          #testing for odd onset clusters, if onset is more than one phone, print the word
+          if (fullwonset %in% odd_onsets) {
+            print("word with odd onset")
+            print(w)
+          }
+          #save tempwonset to onset list
+          onsetlist <- append(onsetlist, fullwonset)
+          codalist <- append(codalist, tempwcoda)
+          #testing printing
+          #print("fullonset")
+          #print(fullwonset)
+          tempwonset <- NULL
+          fullwonset <- NULL
+          tempwcoda <- NULL
+        }
+        #if it is an initial consonant, add it to the tempwonset
+      } else if (i==1 & wphone[i] %in% consonantset) {
+        tempwonset <- append(tempwonset, wphone[i])
+        #test printing
+        #print("tempwonset")
+        #print(tempwonset)
+      }
+    }
+    allcodas <- append(allcodas, codalist)
+    allonsets <- append(allonsets, onsetlist)
+  }
+}
+
+#clean up codas and onsets
+allonsets <- gsub("dj", "j", allonsets)
+allonsets <- gsub("bd", "b", allonsets)
+allonsets <- gsub("nd", "d", allonsets)
+allonsets <- gsub("ŋg", "g", allonsets)
+
+allcodas <- gsub("ʃ", "s", allcodas)
+
+
+unique(allcodas)
+unique(allonsets)
+#create dataframe of frequencies of codas and onsets and save csv
+coda_df <- as.data.frame(table(allcodas))
+onset_df <- as.data.frame(table(allonsets))
+
+coda_df$proportion <- coda_df$Freq/sum(coda_df$Freq)
+onset_df$proportion <- onset_df$Freq/sum(onset_df$Freq)
+
+output <- getwd() 
+
+write.csv(coda_df, paste(output, "codatokens", sep="/"), row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(onset_df, paste(output, "onsettokens", sep="/"), row.names = FALSE, fileEncoding = "UTF-8")
